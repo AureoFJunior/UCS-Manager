@@ -1,0 +1,249 @@
+﻿@{
+    ViewData["Title"] = "Produtos Cadastrados";
+}
+
+<div class="p-5">
+    <div class="border border-light border-3 rounded">
+        <div class="container">
+            <div class="p-5">
+                <div class="row">
+                    <div class="col-8">
+                        <h6>Produtos Cadastrados</h6>
+                    </div>
+                    <div class="col-4">
+                        <button class="btn btn-sm btn-outline-success novoProduto">Novo Produto</button>
+                    </div>
+                </div>
+
+                <hr />
+
+                <div class="p-5 rounded shadow-sm" id="divTabela">
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<div id="modal" class="modal fade" role="dialog">
+
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title"></h6>
+            </div>
+
+            <div class="modal-body">
+                <input type="hidden" class="form-control form-control-sm produtoId" />
+                <div class="form-group">
+                    <label>Nome</label>
+                    <input type="text" class="form-control form-control-sm nome" />
+                    <span class="text-danger erroNome d-none"></span>
+                </div>
+
+                <div class="form-group">
+                    <label>Quantidade</label>
+                    <input type="number" class="form-control form-control-sm quantidade" />
+                    <span class="text-danger erroQuantidade d-none">Digite um número</span>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <div class="form-group">
+                    <input type="button" value="Salvar" class="btn btn-sm btn-outline-success btnSalvar" />
+                    <input type="button" value="Cancelar" class="btn btn-sm btn-light" data-bs-dismiss="modal" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@section scripts {
+<script>
+    $(document).ready(function () {
+        carregarDados();
+    });
+    function carregarDados() {
+        $.ajax({
+            url: "GetAll",
+            method: "GET",
+            success: function (produtos) {
+                montarTabela(produtos);
+            }
+        });
+    }
+    $(".novoProduto").click(function () {
+        escolherTituloModal("Cadastro de novo produto");
+        mostrarModal();
+        limparFormulario();
+        $('.produtoId').val(0);
+    });
+    $(".btnSalvar").click(function () {
+        var produto = {
+            produtoId: $('.produtoId').val(),
+            nome: $('.nome').val(),
+            quantidade: $('.quantidade').val()
+        };
+        if (validarFormulario(produto)) {
+            if (parseInt(produto.produtoId) > 0)
+                atualizarProduto(produto);
+            criarProduto(produto);
+        }
+    });
+    function criarProduto(produto) {
+        $.ajax({
+            url: "Insert",
+            method: 'POST',
+            data: JSON.stringify(produto),
+            dataType: "json",
+            contentType: "application/json; charset=utf-8",
+            success: function (produtoCriada) {
+                $("#modal").modal('hide');
+                var linhaNovaProduto = `<tr id="${produtoCriada.produtoId}">`;
+                linhaNovaProduto += `<td>${produtoCriada.nome}</td>`;
+                linhaNovaProduto += `<td>${produtoCriada.quantidade}</td>`;
+                linhaNovaProduto += `<td><button class="btn btn-sm btn-outline-info"
+                    onclick="pegarProdutoPeloId(${produtoCriada.produtoId})">Atualizar</button> |
+                    <button class="btn btn-sm btn-outline-danger"
+                    onclick="excluirProdutoPeloId(${produtoCriada.produtoId})">Excluir</button></td>`;
+                linhaNovaProduto += '</tr>';
+                $(".tabela tbody").append(linhaNovaProduto);
+                limparFormulario();
+            }
+        });
+    }
+    function pegarProdutoPeloId(produtoId) {
+        $.ajax({
+            url: "GetById/" + produtoId,
+            method: 'GET',
+            success: function (produto) {
+                mostrarModal();
+                escolherTituloModal(`Atualizar produto ${produto.nome}`);
+                $(".produtoId").val(produto.produtoId);
+                $(".nome").val(produto.nome);
+                $(".quantidade").val(produto.quantidade);
+            }
+        })
+    }
+    function atualizarProduto(produto) {
+        $.ajax({
+            url: "Update",
+            method: 'PUT',
+            data: JSON.stringify(produto),
+            dataType: "json",
+            contentType: "application/json; charset=utf-8",
+            success: function (produtoAtualizada) {
+                $("#modal").modal('hide');
+                var linhaTabela = $(`#${produtoAtualizada.produtoId}`);
+                linhaTabela[0].childNodes[0].innerText = produtoAtualizada.nome;
+                linhaTabela[0].childNodes[1].innerText = produtoAtualizada.quantidade;
+                limparFormulario();
+            }
+        });
+    }
+    function excluirProduto(produtoId) {
+        $.ajax({
+            url: "Delete/" + produtoId,
+            method: 'DELETE',
+            success: function (status) {
+                if (status) {
+                    alert("Produto excluída com sucesso");
+                    document.getElementById(produtoId).remove();
+                }
+                else
+                    alert(status.mensagem);
+            }
+        })
+    }
+    function montarTabela(produtos) {
+        var indice = 0;
+        var divTabela = document.getElementById("divTabela");
+        var tabela = '<table class="table table-sm table-hover table-striped tabela">';
+        tabela += '<thead>';
+        tabela += '<tr>';
+        tabela += '<th>Nome</th>';
+        tabela += '<th>Quantidade</th>';
+        tabela += '<th>Ações</th>';
+        tabela += '</tr>';
+        tabela += '</thead>';
+        tabela += '<tbody>';
+        for (indice = 0; indice < produtos.length; indice++) {
+            tabela += `<tr id="${produtos[indice].produtoId}">`;
+            tabela += `<td>${produtos[indice].nome}</td>`;
+            tabela += `<td>${produtos[indice].quantidade}</td>`;
+            tabela += `<td><button class="btn btn-sm btn-outline-info" onclick="pegarProdutoPeloId(${produtos[indice].produtoId})">Atualizar</button> |
+                        <button class="btn btn-sm btn-outline-danger" onclick="excluirProduto(${produtos[indice].produtoId})">Excluir</button></td>`;
+            tabela += '</tr>';
+        }
+        tabela += '</tbody>';
+        tabela += '</table>';
+        divTabela.innerHTML = tabela;
+    }
+    function validarFormulario(produto) {
+        let nomeValido = validarNome(produto.nome);
+        let quantidadeValida = validarQuantidade(produto.quantidade);
+        if (nomeValido == true && quantidadeValida == true)
+            return true;
+        return false;
+    }
+    function validarNome(nome) {
+        let nomeValido = true;
+        if (nome.trim() == '' || nome == undefined) {
+            $(".nome").addClass('is-invalid');
+            $(".erroNome").text("Preencha o nome");
+            $(".erroNome").removeClass("d-none");
+            nomeValido = false;
+        }
+        else if (nome.length > 20) {
+            $(".nome").addClass('is-invalid');
+            $(".erroNome").text("Use menos caracteres");
+            $(".erroNome").removeClass("d-none");
+            nomeValido = false;
+        }
+        else {
+            $(".nome").removeClass('is-invalid');
+            $(".nome").addClass('is-valid');
+            $(".erroNome").addClass("d-none");
+            nomeValido = true;
+        }
+        return nomeValido;
+    }
+    function validarQuantidade(quantidade) {
+        let quantidadeValida = true;
+        if (isNaN(quantidade) || quantidade == undefined || quantidade == '') {
+            $(".quantidade").addClass('is-invalid');
+            $(".erroQuantidade").text("Preencha a quantidade");
+            $(".erroQuantidade").removeClass("d-none");
+            quantidadeValida = false;
+        }
+        else if (parseInt(quantidade) < 0) {
+            $(".quantidade").addClass('is-invalid');
+            $(".erroQuantidade").text("Quantidade inválida");
+            $(".erroQuantidade").removeClass("d-none");
+            quantidadeValida = false;
+        }
+        else {
+            $(".quantidade").removeClass('is-invalid');
+            $(".quantidade").addClass('is-valid');
+            $(".erroQuantidade").addClass("d-none");
+            quantidadeValida = true;
+        }
+        return quantidadeValida;
+    }
+    function mostrarModal() {
+        new bootstrap.Modal($("#modal"), {}).show();
+    }
+    function limparFormulario() {
+        $(".nome").val('');
+        $(".nome").removeClass('is-valid');
+        $(".quantidade").val('');
+        $(".quantidade").removeClass('is-valid');
+    }
+    function escolherTituloModal(texto) {
+        $(".modal-title").text(texto);
+    }
+</script>
+}
